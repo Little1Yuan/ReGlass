@@ -1,12 +1,13 @@
 package restudio.reglass.client;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.resources.Identifier;
 
 public final class LiquidGlassPipelines {
     private static RenderPipeline LIQUID_GLASS_GUI;
@@ -16,9 +17,9 @@ public final class LiquidGlassPipelines {
     public static synchronized RenderPipeline getGuiPipeline() {
         if (LIQUID_GLASS_GUI == null) {
             RenderPipeline.Builder b = RenderPipeline.builder()
-                    .withLocation(Identifier.of("reglass", "pipeline/liquid_glass_gui"))
-                    .withVertexShader(Identifier.of("reglass", "core/blit_fullscreen"))
-                    .withFragmentShader(Identifier.of("reglass", "program/liquid_glass_gui"))
+                    .withLocation(Identifier.fromNamespaceAndPath("reglass", "pipeline/liquid_glass_gui"))
+                    .withVertexShader(Identifier.fromNamespaceAndPath("reglass", "core/blit_fullscreen"))
+                    .withFragmentShader(Identifier.fromNamespaceAndPath("reglass", "program/liquid_glass_gui"))
                     .withUniform("Projection", UniformType.UNIFORM_BUFFER)
                     .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
                     .withUniform("CustomUniforms", UniformType.UNIFORM_BUFFER)
@@ -30,9 +31,8 @@ public final class LiquidGlassPipelines {
                     .withSampler("Sampler3")
                     .withSampler("Sampler4")
                     .withSampler("Sampler5")
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS);
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withVertexFormat(DefaultVertexFormat.POSITION, VertexFormat.Mode.QUADS);
 
             LIQUID_GLASS_GUI = b.build();
             RenderSystem.getDevice().precompilePipeline(LIQUID_GLASS_GUI, null);

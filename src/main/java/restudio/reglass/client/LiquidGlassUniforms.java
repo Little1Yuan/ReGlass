@@ -8,11 +8,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.ScreenRect;
-import net.minecraft.client.gui.render.state.GuiRenderState;
-import net.minecraft.util.math.ColorHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
+import net.minecraft.util.ARGB;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
@@ -20,7 +19,6 @@ import restudio.reglass.client.api.ReGlassConfig;
 import restudio.reglass.client.api.WidgetStyle;
 import restudio.reglass.client.gui.LiquidGlassGuiElementRenderState;
 import restudio.reglass.client.runtime.ReGlassAnim;
-import restudio.reglass.mixin.accessor.GuiRenderStateAccessor;
 
 public final class LiquidGlassUniforms {
 
@@ -92,12 +90,14 @@ public final class LiquidGlassUniforms {
         this.dtSeconds = Math.max(0.0, dtSeconds);
     }
 
+    public boolean screenWantsBlur() { return this.screenWantsBlur; }
+
     public void setScreenWantsBlur(boolean wantsBlur) { this.screenWantsBlur = wantsBlur; }
 
     public void uploadSharedUniforms() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        int outW = mc.getFramebuffer().textureWidth;
-        int outH = mc.getFramebuffer().textureHeight;
+        Minecraft mc = Minecraft.getInstance();
+        int outW = mc.getMainRenderTarget().width;
+        int outH = mc.getMainRenderTarget().height;
 
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(samplerInfo, false, true)) {
             Std140Builder b = Std140Builder.intoBuffer(map.data());
@@ -107,9 +107,9 @@ public final class LiquidGlassUniforms {
 
         double[] mx = new double[1];
         double[] my = new double[1];
-        GLFW.glfwGetCursorPos(mc.getWindow().getHandle(), mx, my);
-        float scale = (float) mc.getWindow().getScaleFactor();
-        int fbH = mc.getFramebuffer().textureHeight;
+        GLFW.glfwGetCursorPos(mc.getWindow().handle(), mx, my);
+        float scale = (float) mc.getWindow().getGuiScale();
+        int fbH = mc.getMainRenderTarget().height;
 
         float time = (float) GLFW.glfwGetTime();
         ReGlassConfig config = ReGlassConfig.INSTANCE;
@@ -127,7 +127,7 @@ public final class LiquidGlassUniforms {
             b.putVec3(new Vector3f(dir2.x, dir2.y, 0.0f));
             b.align(16);
             int rc = config.rimLight.color();
-            b.putVec4(ColorHelper.getRed(rc) / 255f, ColorHelper.getGreen(rc) / 255f, ColorHelper.getBlue(rc) / 255f, config.rimLight.intensity());
+            b.putVec4(ARGB.red(rc) / 255f, ARGB.green(rc) / 255f, ARGB.blue(rc) / 255f, config.rimLight.intensity());
             b.putFloat(config.pixelEpsilon);
             b.putFloat(ReGlassAnim.INSTANCE.debugStep());
             b.putFloat(config.features.pixelatedGrid ? 1.0f : 0.0f);
@@ -143,15 +143,16 @@ public final class LiquidGlassUniforms {
             Std140Builder b = Std140Builder.intoBuffer(map.data());
             b.putFloat(ReGlassAnim.INSTANCE.shadowExpand());
             b.putFloat(ReGlassAnim.INSTANCE.shadowFactor());
-            float s = (float) mc.getWindow().getScaleFactor();
+            float s = (float) mc.getWindow().getGuiScale();
             b.putVec2(ReGlassAnim.INSTANCE.shadowOffsetX() * s, ReGlassAnim.INSTANCE.shadowOffsetY() * s);
         }
     }
 
-    public void tryApplyBlur(DrawContext context) {
-        GuiRenderState state = context.state;
-        int blurLayer = ((GuiRenderStateAccessor) state).getBlurLayer();
-        if (blurLayer == Integer.MAX_VALUE) state.applyBlur();
+    public void tryApplyBlur(GuiGraphicsExtractor context) {
+        if (!screenWantsBlur) {
+            context.blurBeforeThisStratum();
+            screenWantsBlur = true;
+        }
     }
 
     public void addWidget(LiquidGlassGuiElementRenderState element) {
@@ -177,9 +178,9 @@ public final class LiquidGlassUniforms {
     }
 
     public void uploadWidgetInfo() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        int fbH = mc.getFramebuffer().textureHeight;
-        float scale = (float) mc.getWindow().getScaleFactor();
+        Minecraft mc = Minecraft.getInstance();
+        int fbH = mc.getMainRenderTarget().height;
+        float scale = (float) mc.getWindow().getGuiScale();
 
         HashSet<Integer> requested = new HashSet<>();
         for (LiquidGlassGuiElementRenderState w : widgets) {
@@ -228,7 +229,7 @@ public final class LiquidGlassUniforms {
                 if (i < widgets.size()) {
                     var style = widgets.get(i).style();
                     int c = style.getTintColor();
-                    b.putVec4(ColorHelper.getRed(c) / 255f, ColorHelper.getGreen(c) / 255f, ColorHelper.getBlue(c) / 255f, style.getTintAlpha());
+                    b.putVec4(ARGB.red(c) / 255f, ARGB.green(c) / 255f, ARGB.blue(c) / 255f, style.getTintAlpha());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
@@ -261,14 +262,14 @@ public final class LiquidGlassUniforms {
             for (int i = 0; i < MAX_WIDGETS; i++) {
                 if (i < widgets.size()) {
                     var w = widgets.get(i);
-                    ScreenRect sc = w.scissorArea();
+                    ScreenRectangle sc = w.scissorArea();
                     if (sc != null) {
-                        float sL = sc.getLeft() * scale;
-                        float sR = sc.getRight() * scale;
-                        float sT = sc.getTop() * scale;
-                        float sB = sc.getBottom() * scale;
+                        float sL = sc.left() * scale;
+                        float sR = sc.right() * scale;
+                        float sT = sc.top() * scale;
+                        float sB = sc.bottom() * scale;
                         b.putVec4(sL, fbH - sB, sR, fbH - sT);
-                    } else b.putVec4(0f, 0f, (float) mc.getFramebuffer().textureWidth, (float) mc.getFramebuffer().textureHeight);
+                    } else b.putVec4(0f, 0f, (float) mc.getMainRenderTarget().width, (float) mc.getMainRenderTarget().height);
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
@@ -285,7 +286,7 @@ public final class LiquidGlassUniforms {
                 if (i < widgets.size()) {
                     WidgetStyle s = widgets.get(i).style();
                     int col = s.getShadowColor();
-                    b.putVec4(ColorHelper.getRed(col) / 255f, ColorHelper.getGreen(col) / 255f, ColorHelper.getBlue(col) / 255f, s.getShadowColorAlpha());
+                    b.putVec4(ARGB.red(col) / 255f, ARGB.green(col) / 255f, ARGB.blue(col) / 255f, s.getShadowColorAlpha());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
@@ -300,9 +301,7 @@ public final class LiquidGlassUniforms {
                     FadeState fs = fades.computeIfAbsent(key, k -> new FadeState());
                     fs.hover = smoothToward(fs.hover, Math.max(0f, Math.min(1f, w.hover())), dtSeconds, 0.12f);
                     fs.focus = smoothToward(fs.focus, Math.max(0f, Math.min(1f, w.focus())), dtSeconds, 0.18f);
-                    double h = Math.sin(w.x1() * 12.9898 + w.y1() * 78.233 + i * 37.719);
-                    float seed = (float) (h - Math.floor(h));
-                    b.putVec4((float) idx, fs.hover, fs.focus, seed);
+                    b.putVec4((float) idx, fs.hover, fs.focus, (float) s.getLayer());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
         }

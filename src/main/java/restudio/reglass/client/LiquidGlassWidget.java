@@ -1,14 +1,14 @@
 package restudio.reglass.client;
 
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 import restudio.reglass.client.api.ReGlassApi;
 import restudio.reglass.client.api.WidgetStyle;
 
-public class LiquidGlassWidget extends ClickableWidget {
+public class LiquidGlassWidget extends AbstractWidget {
     private float cornerRadiusPx;
     private boolean moveable;
     private boolean dragging;
@@ -17,7 +17,7 @@ public class LiquidGlassWidget extends ClickableWidget {
     public WidgetStyle style = new WidgetStyle();
 
     public LiquidGlassWidget(int x, int y, int width, int height, WidgetStyle style) {
-        super(x, y, width, height, Text.empty());
+        super(x, y, width, height, Component.empty());
         this.cornerRadiusPx = 0.5f * Math.min(width, height);
         if (style != null) this.style = style;
     }
@@ -33,13 +33,13 @@ public class LiquidGlassWidget extends ClickableWidget {
     }
 
     @Override
-    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractWidgetRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         ReGlassApi.create(context).fromWidget(this).cornerRadius(cornerRadiusPx).style(this.style).render();
         LiquidGlassUniforms.get().tryApplyBlur(context);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isDouble) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isDouble) {
         if (!this.moveable) return super.mouseClicked(click, isDouble);
         if (click.button() == 0 && click.x() >= this.getX() && click.x() < this.getX() + this.getWidth() && click.y() >= this.getY() && click.y() < this.getY() + this.getHeight()) {
             this.dragging = true;
@@ -51,7 +51,7 @@ public class LiquidGlassWidget extends ClickableWidget {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+    public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
         if (this.dragging && click.button() == 0) {
             int newX = (int) (click.x() - this.dragOffsetX);
             int newY = (int) (click.y() - this.dragOffsetY);
@@ -63,7 +63,7 @@ public class LiquidGlassWidget extends ClickableWidget {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (this.dragging && click.button() == 0) {
             this.dragging = false;
         }
@@ -71,5 +71,5 @@ public class LiquidGlassWidget extends ClickableWidget {
         return super.mouseReleased(click);
     }
 
-    @Override protected void appendClickableNarrations(NarrationMessageBuilder builder) {}
+    @Override protected void updateWidgetNarration(NarrationElementOutput builder) {}
 }

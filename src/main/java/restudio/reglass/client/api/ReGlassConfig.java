@@ -14,6 +14,7 @@ public class ReGlassConfig {
     public float defaultTintAlpha = 0.0f;
 
     public float defaultSmoothing = 0.003f;
+    public int defaultLayer = 10;
 
     public int defaultBlurRadius = 12;
 

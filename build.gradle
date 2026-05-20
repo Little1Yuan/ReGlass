@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version "${loom_version}"
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 }
 
@@ -18,11 +18,24 @@ repositories {
 dependencies {
 
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	
+}
+
+sourceSets {
+	main {
+		java {
+			exclude "restudio/reglass/client/screen/world/**"
+			exclude "restudio/reglass/client/screen/widget/world/**"
+			exclude "restudio/reglass/client/gui/LiquidGlassGuiElementRenderer.java"
+			exclude "restudio/reglass/mixin/accessor/TextIconButtonWidgetAccessor.java"
+			exclude "restudio/reglass/mixin/client/GuiRendererMixin.java"
+			exclude "restudio/reglass/mixin/client/MinecraftClientMixin.java"
+			exclude "restudio/reglass/mixin/widgets/TooltipStateMixin.java"
+		}
+	}
 }
 
 processResources {
@@ -34,7 +47,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = 25
 }
 
 java {
@@ -42,8 +55,12 @@ java {
 
     withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {

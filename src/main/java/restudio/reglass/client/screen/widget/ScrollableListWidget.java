@@ -2,14 +2,14 @@ package restudio.reglass.client.screen.widget;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.List;
 import java.util.Set;
@@ -22,7 +22,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
     private double scrollAmount;
 
     public ScrollableListWidget(Screen screen, int x, int y, int width, int height, int itemHeight) {
-        super(screen, x, y, width, height, Text.empty());
+        super(screen, x, y, width, height, Component.empty());
         this.itemHeight = itemHeight;
     }
 
@@ -53,7 +53,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
     }
 
     public void setSelected(E entry) {
-        if (!InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), InputUtil.GLFW_KEY_LEFT_CONTROL)) {
+        if (!InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), InputConstants.KEY_LCONTROL)) {
             this.selectedEntries.clear();
         }
 
@@ -65,7 +65,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
     }
 
     @Override
-    public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractWidgetRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.enableScissor(getX(), getY(), getX() + width, getY() + height);
 
         int top = getY() - (int) this.scrollAmount + verticalPadding;
@@ -74,7 +74,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
             int entryY = top + i * (this.itemHeight + verticalPadding);
             if (entryY + this.itemHeight >= this.getY() && entryY <= this.getY() + this.height) {
                 boolean isHovered = isMouseOver(mouseX, mouseY) && mouseY >= entryY && mouseY < entryY + this.itemHeight;
-                entry.render(context, i, getX(), entryY, width, this.itemHeight, mouseX, mouseY, isHovered, delta);
+                entry.extractRenderState(context, i, getX(), entryY, width, this.itemHeight, mouseX, mouseY, isHovered, delta);
             }
         }
 
@@ -82,7 +82,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
     }
 
     @Override
-    public boolean mouseClicked(Click button, boolean isDouble) {
+    public boolean mouseClicked(MouseButtonEvent button, boolean isDouble) {
         if (isMouseOver(button.y(), button.y())) {
             int top = getY() - (int) this.scrollAmount + verticalPadding;
             for (int i = 0; i < this.entries.size(); i++) {
@@ -104,7 +104,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (isMouseOver(mouseX, mouseY)) {
             this.scrollAmount -= verticalAmount * (this.itemHeight / 2.0);
-            this.scrollAmount = MathHelper.clamp(this.scrollAmount, 0, Math.max(0, this.getMaxScroll()));
+            this.scrollAmount = Mth.clamp(this.scrollAmount, 0, Math.max(0, this.getMaxScroll()));
             return true;
         }
         return false;
@@ -123,7 +123,7 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
     }
 
     @Override
-    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+    protected void updateWidgetNarration(NarrationElementOutput builder) {
     }
 
     public static abstract class Entry<E extends Entry<E>> {
@@ -136,14 +136,14 @@ public class ScrollableListWidget<E extends ScrollableListWidget.Entry<E>> exten
             this.height = height;
         }
 
-        public void render(DrawContext context, int index, int x, int y, int width, int height, int mouseX, int mouseY, boolean hovered, float delta) {
+        public void extractRenderState(GuiGraphicsExtractor context, int index, int x, int y, int width, int height, int mouseX, int mouseY, boolean hovered, float delta) {
             this.x = x;
             this.y = y;
             this.width = width;
             this.height = height;
         }
 
-        public abstract boolean mouseClicked(Click button);
+        public abstract boolean mouseClicked(MouseButtonEvent button);
 
         public boolean isMouseOver(double mouseX, double mouseY) {
             return mouseX >= this.x && mouseX < this.x + this.width &&

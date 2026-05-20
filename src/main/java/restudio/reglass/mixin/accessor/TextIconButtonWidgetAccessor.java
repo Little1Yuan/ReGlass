@@ -1,7 +1,7 @@
 package restudio.reglass.mixin.accessor;
 
 import net.minecraft.client.gui.widget.TextIconButtonWidget;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 

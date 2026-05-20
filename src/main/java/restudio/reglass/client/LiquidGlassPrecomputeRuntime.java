@@ -2,8 +2,9 @@ package restudio.reglass.client;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
@@ -15,12 +16,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.OptionalInt;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.UniformType;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.shaders.UniformType;
 import net.minecraft.client.gui.render.GuiRenderer;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.GameRenderer;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.resources.Identifier;
 import restudio.reglass.client.api.ReGlassConfig;
 import restudio.reglass.client.gui.QuadVertexBufferProvider;
 import restudio.reglass.mixin.accessor.GameRendererAccessor;
@@ -49,24 +50,23 @@ public final class LiquidGlassPrecomputeRuntime {
 
     private List<Integer> requestedRadii = new ArrayList<>();
 
-    private static final Identifier VS_ID = Identifier.of("reglass", "core/blit_fullscreen");
-    private static final Identifier BLUR_ID = Identifier.of("reglass", "program/blur");
+    private static final Identifier VS_ID = Identifier.fromNamespaceAndPath("reglass", "core/blit_fullscreen");
+    private static final Identifier BLUR_ID = Identifier.fromNamespaceAndPath("reglass", "program/blur");
 
     private LiquidGlassPrecomputeRuntime() {}
 
     private void ensurePipelines() {
         if (blurPipeline == null) {
             blurPipeline = RenderPipeline.builder()
-                    .withLocation(Identifier.of("reglass", "pipeline/blur"))
+                    .withLocation(Identifier.fromNamespaceAndPath("reglass", "pipeline/blur"))
                     .withVertexShader(VS_ID)
                     .withFragmentShader(BLUR_ID)
                     .withUniform("Projection", UniformType.UNIFORM_BUFFER)
                     .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
                     .withUniform("Config", UniformType.UNIFORM_BUFFER)
                     .withSampler("DiffuseSampler")
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withVertexFormat(DefaultVertexFormat.POSITION, VertexFormat.Mode.QUADS)
                     .build();
             RenderSystem.getDevice().precompilePipeline(blurPipeline, null);
         }
@@ -91,7 +91,7 @@ public final class LiquidGlassPrecomputeRuntime {
                 blurTempTex.close();
             }
             blurTempTex = RenderSystem.getDevice().createTexture("reglass blurTemp", 12, TextureFormat.RGBA8, w, h, 1, 1);
-            blurTempView = RenderSystem.getDevice().createTextureView(blurTempTex);
+             blurTempView = RenderSystem.getDevice().createTextureView(blurTempTex);
         }
     }
 
@@ -146,10 +146,10 @@ public final class LiquidGlassPrecomputeRuntime {
     public void run() {
         ensurePipelines();
 
-        var mc = MinecraftClient.getInstance();
-        var main = mc.getFramebuffer();
-        int w = main.textureWidth;
-        int h = main.textureHeight;
+        var mc = Minecraft.getInstance();
+        var main = mc.getMainRenderTarget();
+        int w = main.width;
+        int h = main.height;
 
         ensureTempTarget(w, h);
 
@@ -161,9 +161,9 @@ public final class LiquidGlassPrecomputeRuntime {
         GameRenderer gameRenderer = mc.gameRenderer;
         GuiRenderer guiRenderer = ((GameRendererAccessor) gameRenderer).getGuiRenderer();
         var quadVB = ((QuadVertexBufferProvider) guiRenderer).getQuadVertexBuffer();
-        var idxInfo = RenderSystem.getSequentialBuffer(VertexFormat.DrawMode.QUADS);
-        var ib = idxInfo.getIndexBuffer(6);
-        var it = idxInfo.getIndexType();
+        var idxInfo = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
+        var ib = idxInfo.getBuffer(6);
+        var it = idxInfo.type();
 
         int max = Math.min(LiquidGlassUniforms.MAX_BLUR_LEVELS, requestedRadii == null ? 0 : requestedRadii.size());
         if (max == 0) {
@@ -188,7 +188,7 @@ public final class LiquidGlassPrecomputeRuntime {
                 RenderSystem.bindDefaultUniforms(pass);
                 pass.setUniform("SamplerInfo", samplerInfoUbo);
                 pass.setUniform("Config", blurConfigUboX);
-                pass.bindTexture("DiffuseSampler", main.getColorAttachmentView(), RenderSystem.getSamplerCache().get(FilterMode.LINEAR));
+                pass.bindTexture("DiffuseSampler", main.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
                 pass.setVertexBuffer(0, quadVB);
                 pass.setIndexBuffer(ib, it);
                 pass.drawIndexed(0, 0, 6, 1);
@@ -199,7 +199,7 @@ public final class LiquidGlassPrecomputeRuntime {
                 RenderSystem.bindDefaultUniforms(pass);
                 pass.setUniform("SamplerInfo", samplerInfoUbo);
                 pass.setUniform("Config", blurConfigUboY);
-                pass.bindTexture("DiffuseSampler", blurTempView, RenderSystem.getSamplerCache().get(FilterMode.LINEAR));
+                pass.bindTexture("DiffuseSampler", blurTempView, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
                 pass.setVertexBuffer(0, quadVB);
                 pass.setIndexBuffer(ib, it);
                 pass.drawIndexed(0, 0, 6, 1);
