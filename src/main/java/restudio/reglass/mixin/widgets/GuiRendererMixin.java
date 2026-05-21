@@ -6,9 +6,15 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.List;
 import net.minecraft.client.gui.render.GuiRenderer;
+//#if MC >= 26
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+//#else
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+//#endif
 import org.lwjgl.system.MemoryStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,7 +29,11 @@ public class GuiRendererMixin implements QuadVertexBufferProvider {
     private GpuBuffer reglass$quadVertexBuffer;
 
     @Inject(method = "<init>", at = @At("TAIL"))
+//#if MC >= 26
     private void reglass$onInit(GuiRenderState state, MultiBufferSource.BufferSource vertexConsumers, SubmitNodeCollector queue, net.minecraft.client.renderer.feature.FeatureRenderDispatcher dispatcher, List specialElementRenderers, CallbackInfo ci) {
+//#else
+    private void reglass$onInit(GuiRenderState state, VertexConsumerProvider.Immediate vertexConsumers, OrderedRenderCommandQueue queue, net.minecraft.client.render.command.RenderDispatcher dispatcher, List specialElementRenderers, CallbackInfo ci) {
+//#endif
         try (MemoryStack stack = MemoryStack.stackPush()) {
             ByteBuffer byteBuffer = stack.malloc(4 * 3 * 4);
             FloatBuffer floatBuffer = byteBuffer.asFloatBuffer();

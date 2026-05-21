@@ -1,3 +1,4 @@
+//? if >=26 {
 package restudio.reglass.mixin.accessor;
 
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -9,3 +10,4 @@ public interface ScissorStackAccessor {
     @Invoker("peek")
     ScreenRectangle reglass$peek();
 }
+//?}

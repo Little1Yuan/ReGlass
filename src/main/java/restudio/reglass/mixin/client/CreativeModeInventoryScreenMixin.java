@@ -1,5 +1,6 @@
 package restudio.reglass.mixin.client;
 
+//#if MC >= 26
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -8,6 +9,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.CreativeModeTab;
+//#else
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.screen.slot.Slot;
+import net.minecraft.text.Text;
+//#endif
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -20,14 +31,27 @@ import restudio.reglass.client.api.ReGlassConfig;
 import restudio.reglass.client.api.WidgetStyle;
 import restudio.reglass.mixin.accessor.SlotAccessor;
 
+//#if MC >= 26
 @Mixin(CreativeModeInventoryScreen.class)
 public abstract class CreativeModeInventoryScreenMixin extends AbstractContainerScreen<CreativeModeInventoryScreen.ItemPickerMenu> {
     @Shadow private static CreativeModeTab selectedTab;
     @Shadow private EditBox searchBox;
     @Shadow private Slot destroyItemSlot;
+//#else
+@Mixin(CreativeInventoryScreen.class)
+public abstract class CreativeModeInventoryScreenMixin extends HandledScreen<CreativeInventoryScreen.CreativeScreenHandler> {
+    @Shadow private static ItemGroup selectedTab;
+    @Shadow private TextFieldWidget searchBox;
+    @Shadow private Slot deleteItemSlot;
+//#endif
 
+//#if MC >= 26
     protected CreativeModeInventoryScreenMixin(CreativeModeInventoryScreen.ItemPickerMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
+//#else
+    protected CreativeModeInventoryScreenMixin(CreativeInventoryScreen.CreativeScreenHandler handler, PlayerInventory inventory, Text title) {
+        super(handler, inventory, title);
+//#endif
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -37,19 +61,38 @@ public abstract class CreativeModeInventoryScreenMixin extends AbstractContainer
             return;
         }
 
+//#if MC >= 26
         this.searchBox.setY(this.topPos + 4);
+//#else
+        this.searchBox.setY(this.y + 4);
+//#endif
     }
 
+//#if MC >= 26
     @Inject(method = "selectTab", at = @At("TAIL"))
     private void reglass$spaceSurvivalTab(CreativeModeTab tab, CallbackInfo ci) {
+//#else
+    @Inject(method = "setSelectedTab", at = @At("TAIL"))
+    private void reglass$spaceSurvivalTab(ItemGroup tab, CallbackInfo ci) {
+//#endif
         ReGlassConfig cfg = ReGlassConfig.INSTANCE;
+//#if MC >= 26
         if (!cfg.features.enableRedesign || !cfg.features.containers || selectedTab.getType() != CreativeModeTab.Type.INVENTORY) {
+//#else
+        if (!cfg.features.enableRedesign || !cfg.features.containers || selectedTab.getType() != ItemGroup.Type.INVENTORY) {
+//#endif
             return;
         }
 
+//#if MC >= 26
         for (int i = 0; i < this.menu.slots.size(); i++) {
             Slot slot = this.menu.slots.get(i);
             if (slot == this.destroyItemSlot) {
+//#else
+        for (int i = 0; i < this.handler.slots.size(); i++) {
+            Slot slot = this.handler.slots.get(i);
+            if (slot == this.deleteItemSlot) {
+//#endif
                 reglass$setSlotPosition(slot, 181, 120);
             } else if (i >= 5 && i <= 8) {
                 int armorIndex = i - 5;
@@ -63,32 +106,48 @@ public abstract class CreativeModeInventoryScreenMixin extends AbstractContainer
     }
 
     @Inject(method = "getTabY", at = @At("HEAD"), cancellable = true)
+//#if MC >= 26
     private void reglass$getTabY(CreativeModeTab tab, CallbackInfoReturnable<Integer> cir) {
+//#else
+    private void reglass$getTabY(ItemGroup tab, CallbackInfoReturnable<Integer> cir) {
+//#endif
         ReGlassConfig cfg = ReGlassConfig.INSTANCE;
         if (!cfg.features.enableRedesign || !cfg.features.containers) {
             return;
         }
 
+//#if MC >= 26
         cir.setReturnValue(tab.row() == CreativeModeTab.Row.TOP ? -36 : this.imageHeight + 4);
+//#else
+        cir.setReturnValue(tab.getRow() == ItemGroup.Row.TOP ? -36 : this.backgroundHeight + 4);
+//#endif
     }
 
+//#if MC >= 26
     @Inject(method = "extractTabButton", at = @At("HEAD"), cancellable = true)
     private void reglass$extractTabButton(GuiGraphicsExtractor context, int mouseX, int mouseY, CreativeModeTab tab, CallbackInfo ci) {
+//#else
+    @Inject(method = "renderTabIcon", at = @At("HEAD"), cancellable = true)
+    private void reglass$renderTabIcon(DrawContext context, int mouseX, int mouseY, ItemGroup tab, CallbackInfo ci) {
+//#endif
         ReGlassConfig cfg = ReGlassConfig.INSTANCE;
         if (!cfg.features.enableRedesign || !cfg.features.containers) {
             return;
         }
 
+//#if MC >= 26
         boolean selected = tab == selectedTab;
         boolean top = tab.row() == CreativeModeTab.Row.TOP;
         int x = this.leftPos + reglass$getTabX(tab);
         int y = this.topPos + (top ? -34 : this.imageHeight + 6);
+//#else
+        boolean selected = tab == selectedTab;
+        boolean top = tab.getRow() == ItemGroup.Row.TOP;
+        int x = this.x + reglass$getTabX(tab);
+        int y = this.y + (top ? -34 : this.backgroundHeight + 6);
+//#endif
         int blobX = x + 1;
         int blobY = y + (top ? 5 : 3);
-
-        if (!selected && mouseX > x && mouseY > y && mouseX < x + 26 && mouseY < y + 32) {
-            context.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND);
-        }
 
         ReGlassApi.create(context)
                 .dimensions(blobX, blobY, 24, 24)
@@ -97,22 +156,38 @@ public abstract class CreativeModeInventoryScreenMixin extends AbstractContainer
                 .style(WidgetStyle.create()
                         .tint(0x000000, selected ? 0.22f : 0.12f)
                         .layer(selected ? 3 : 2))
+//#if MC >= 26
                 .screenSpace()
+//#endif
                 .render();
 
+//#if MC >= 26
         context.item(tab.getIconItem(), x + 5, y + (top ? 9 : 7));
+//#else
+        context.drawItem(tab.getIcon(), x + 5, y + (top ? 9 : 7));
+//#endif
         ci.cancel();
     }
 
+//#if MC >= 26
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
     private void reglass$extractLabels(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
+//#else
+    @Inject(method = "drawForeground", at = @At("HEAD"), cancellable = true)
+    private void reglass$drawLabels(DrawContext context, int mouseX, int mouseY, CallbackInfo ci) {
+//#endif
         ReGlassConfig cfg = ReGlassConfig.INSTANCE;
         if (!cfg.features.enableRedesign || !cfg.features.containers) {
             return;
         }
 
+//#if MC >= 26
         if (selectedTab.showTitle()) {
             context.text(this.font, selectedTab.getDisplayName(), 8, 4, 0xFFFFFFFF, true);
+//#else
+        if (selectedTab.shouldRenderName()) {
+            context.drawText(this.textRenderer, selectedTab.getDisplayName(), 8, 4, 0xFFFFFFFF, true);
+//#endif
         }
         ci.cancel();
     }
@@ -122,6 +197,7 @@ public abstract class CreativeModeInventoryScreenMixin extends AbstractContainer
         ((SlotAccessor) slot).reglass$setX(x);
         ((SlotAccessor) slot).reglass$setY(y);
     }
+//#if MC >= 26
 
     @Unique
     private int reglass$getTabX(CreativeModeTab tab) {
@@ -131,4 +207,15 @@ public abstract class CreativeModeInventoryScreenMixin extends AbstractContainer
         }
         return 27 * column;
     }
+//#else
+    @Unique
+    private int reglass$getTabX(ItemGroup tab) {
+        int column = tab.getColumn();
+        if (tab.isSpecial()) {
+            return this.backgroundWidth - 27 * (7 - column) + 1;
+        }
+        return 27 * column;
+    }
+//#endif
 }
+
