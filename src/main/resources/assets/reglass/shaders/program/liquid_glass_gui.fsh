@@ -31,6 +31,7 @@ layout(std140) uniform CustomUniforms {
 #define MAX_WIDGETS 64
 layout(std140) uniform WidgetInfo {
     float Count;
+    vec4 LayerRanges[16];
     vec4 Rects[MAX_WIDGETS];
     vec4 Rads[MAX_WIDGETS];
     vec4 Tints[MAX_WIDGETS];
@@ -100,20 +101,27 @@ vec4 sampleBlur(int idx, vec2 uv) {
 SDFResult fieldWidgets(vec2 p, vec2 inSize, vec2 fragCoord, float layer) {
     int n = int(Count + 0.5);
     if (n == 0) return SDFResult(1e6, vec2(0.0), 1.0, -1);
+    int layerIndex = int(layer + 0.5);
+    if (layerIndex < 0 || layerIndex >= 16) return SDFResult(1e6, vec2(0.0), 1.0, -1);
+    vec4 layerRange = LayerRanges[layerIndex];
+    int start = int(layerRange.x + 0.5);
+    int count = int(layerRange.y + 0.5);
+    if (count <= 0) return SDFResult(1e6, vec2(0.0), 1.0, -1);
 
     SDFResult pos = SDFResult(1e6, vec2(0.0), 1.0, -1);
     bool hasPos = false;
 
     for (int i = 0; i < MAX_WIDGETS; i++) {
-        if (i >= n) break;
-        if (abs(Extra0[i].w - layer) > 0.1) continue;
-        if (Smoothings[i].x < 0.0) continue;
+        if (i >= count) break;
+        int wi = start + i;
+        if (wi >= n) break;
+        if (Smoothings[wi].x < 0.0) continue;
 
-        vec4 sc = ScissorRects[i];
+        vec4 sc = ScissorRects[wi];
         if (fragCoord.x < sc.x || fragCoord.y < sc.y || fragCoord.x > sc.z || fragCoord.y > sc.w) continue;
 
-        vec4 rc = Rects[i];
-        vec4 rr = Rads[i];
+        vec4 rc = Rects[wi];
+        vec4 rr = Rads[wi];
         vec2 cPx = vec2(rc.x + 0.5 * rc.z, rc.y + 0.5 * rc.w);
         vec2 c = screenToUV(cPx, inSize);
         vec2 b = 0.5 * vec2(rc.z, rc.w) / inSize.y;
@@ -121,29 +129,30 @@ SDFResult fieldWidgets(vec2 p, vec2 inSize, vec2 fragCoord, float layer) {
 
         vec3 g = sdgBox(p - c, b, rad);
 
-        vec4 extra = Extra0[i];
+        vec4 extra = Extra0[wi];
         float scaleOff = (HoverScalePx * extra.y + FocusScalePx * extra.z) / inSize.y;
         float dist = g.x - scaleOff;
 
         float aspect = min(rc.z, rc.w) / max(rc.z, rc.w);
-        SDFResult s = SDFResult(dist, g.yz, aspect, i);
+        SDFResult s = SDFResult(dist, g.yz, aspect, wi);
 
         if (!hasPos) { pos = s; hasPos = true; }
-        else { pos = opSmoothUnion(pos, s, Smoothings[i].x); }
+        else { pos = opSmoothUnion(pos, s, Smoothings[wi].x); }
     }
 
     SDFResult f = pos;
 
     for (int i = 0; i < MAX_WIDGETS; i++) {
-        if (i >= n) break;
-        if (abs(Extra0[i].w - layer) > 0.1) continue;
-        if (Smoothings[i].x >= 0.0) continue;
+        if (i >= count) break;
+        int wi = start + i;
+        if (wi >= n) break;
+        if (Smoothings[wi].x >= 0.0) continue;
 
-        vec4 sc = ScissorRects[i];
+        vec4 sc = ScissorRects[wi];
         if (fragCoord.x < sc.x || fragCoord.y < sc.y || fragCoord.x > sc.z || fragCoord.y > sc.w) continue;
 
-        vec4 rc = Rects[i];
-        vec4 rr = Rads[i];
+        vec4 rc = Rects[wi];
+        vec4 rr = Rads[wi];
         vec2 cPx = vec2(rc.x + 0.5 * rc.z, rc.y + 0.5 * rc.w);
         vec2 c = screenToUV(cPx, inSize);
         vec2 b = 0.5 * vec2(rc.z, rc.w) / inSize.y;
@@ -151,14 +160,14 @@ SDFResult fieldWidgets(vec2 p, vec2 inSize, vec2 fragCoord, float layer) {
 
         vec3 g = sdgBox(p - c, b, rad);
 
-        vec4 extra = Extra0[i];
+        vec4 extra = Extra0[wi];
         float scaleOff = (HoverScalePx * extra.y + FocusScalePx * extra.z) / inSize.y;
         float dist = g.x - scaleOff;
 
         float aspect = min(rc.z, rc.w) / max(rc.z, rc.w);
-        SDFResult s = SDFResult(dist, g.yz, aspect, i);
+        SDFResult s = SDFResult(dist, g.yz, aspect, wi);
 
-        float repulsion = -Smoothings[i].x;
+        float repulsion = -Smoothings[wi].x;
         SDFResult se = SDFResult(s.dist - repulsion, s.normal, s.aspect, s.index);
         f = opHardSubtract(f, se);
         f = opHardUnion(f, s);
@@ -192,29 +201,34 @@ void main() {
 
     for (int l = 0; l < 16; l++) {
         float fl = float(l);
+        vec4 layerRange = LayerRanges[l];
+        int start = int(layerRange.x + 0.5);
+        int count = int(layerRange.y + 0.5);
+        if (count <= 0) continue;
 
         for (int i = 0; i < MAX_WIDGETS; i++) {
-            if (i >= n) break;
-            if (abs(Extra0[i].w - fl) > 0.1) continue;
+            if (i >= count) break;
+            int wi = start + i;
+            if (wi >= n) break;
 
-            vec4 sc = ScissorRects[i];
+            vec4 sc = ScissorRects[wi];
             if (coord.x < sc.x || coord.y < sc.y || coord.x > sc.z || coord.y > sc.w) continue;
 
-            vec4 rc = Rects[i];
-            vec4 rr = Rads[i];
+            vec4 rc = Rects[wi];
+            vec4 rr = Rads[wi];
             vec2 cPx = vec2(rc.x + 0.5 * rc.z, rc.y + 0.5 * rc.w);
 
-            vec2 pShadow = screenToUV(coord + Shadow0[i].zw, inSize);
+            vec2 pShadow = screenToUV(coord + Shadow0[wi].zw, inSize);
             vec2 c = screenToUV(cPx, inSize);
             vec2 b = 0.5 * vec2(rc.z, rc.w) / inSize.y;
             vec4 rad = rr / inSize.y;
 
             vec3 g = sdgBox(pShadow - c, b, rad);
-            float expand = max(Shadow0[i].x, 1e-4);
-            float factor = Shadow0[i].y;
+            float expand = max(Shadow0[wi].x, 1e-4);
+            float factor = Shadow0[wi].y;
             float sh = exp(-abs(g.x) * inSize.y / expand) * 0.6 * factor;
-            vec3 scol = ShadowColor[i].rgb;
-            float sa = clamp(ShadowColor[i].a * sh, 0.0, 1.0);
+            vec3 scol = ShadowColor[wi].rgb;
+            float sa = clamp(ShadowColor[wi].a * sh, 0.0, 1.0);
             currentColor = mix(currentColor, scol, sa);
         }
 

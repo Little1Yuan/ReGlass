@@ -38,6 +38,7 @@ public final class LiquidGlassUniforms {
 
     private List<Integer> usedBlurRadiiOrdered = new ArrayList<>();
     private final HashMap<Integer, Integer> blurRadiusToIndex = new HashMap<>();
+    private static final int MAX_LAYERS = 16;
 
     private static final class FadeState {
         float hover;
@@ -71,7 +72,7 @@ public final class LiquidGlassUniforms {
         int customUniformsSize = calc.get();
         customUniforms = RenderSystem.getDevice().createBuffer(() -> "reglass CustomUniforms", 130, customUniformsSize);
 
-        int widgetInfoSize = 16 + MAX_WIDGETS * (16 * 12);
+        int widgetInfoSize = 16 + MAX_LAYERS * 16 + MAX_WIDGETS * (16 * 12);
         widgetInfo = RenderSystem.getDevice().createBuffer(() -> "reglass WidgetInfo", 130, widgetInfoSize);
 
         Std140SizeCalculator bcalc = new Std140SizeCalculator();
@@ -181,9 +182,27 @@ public final class LiquidGlassUniforms {
         Minecraft mc = Minecraft.getInstance();
         int fbH = mc.getMainRenderTarget().height;
         float scale = (float) mc.getWindow().getGuiScale();
+        List<LiquidGlassGuiElementRenderState> renderWidgets = new ArrayList<>(widgets);
+        renderWidgets.sort((a, b) -> Integer.compare(a.style().getLayer(), b.style().getLayer()));
+        int[] layerStarts = new int[MAX_LAYERS];
+        int[] layerCounts = new int[MAX_LAYERS];
+        for (int i = 0; i < MAX_LAYERS; i++) {
+            layerStarts[i] = -1;
+        }
+        for (int i = 0; i < renderWidgets.size(); i++) {
+            LiquidGlassGuiElementRenderState w = renderWidgets.get(i);
+            int layer = w.style().getLayer();
+            if (layer < 0 || layer >= MAX_LAYERS) {
+                continue;
+            }
+            if (layerStarts[layer] < 0) {
+                layerStarts[layer] = i;
+            }
+            layerCounts[layer]++;
+        }
 
         HashSet<Integer> requested = new HashSet<>();
-        for (LiquidGlassGuiElementRenderState w : widgets) {
+        for (LiquidGlassGuiElementRenderState w : renderWidgets) {
             WidgetStyle s = w.style();
             requested.add(Math.max(1, s.getBlurRadius()));
         }
@@ -196,12 +215,17 @@ public final class LiquidGlassUniforms {
 
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(widgetInfo, false, true)) {
             Std140Builder b = Std140Builder.intoBuffer(map.data());
-            b.putFloat((float) widgets.size());
+            b.putFloat((float) renderWidgets.size());
             b.align(16);
 
+            for (int i = 0; i < MAX_LAYERS; i++) {
+                int start = layerStarts[i] < 0 ? 0 : layerStarts[i];
+                b.putVec4((float) start, (float) layerCounts[i], 0f, 0f);
+            }
+
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    var w = widgets.get(i);
+                if (i < renderWidgets.size()) {
+                    var w = renderWidgets.get(i);
                     float W = w.x2() - w.x1();
                     float H = w.y2() - w.y1();
                     float px = w.x1() * scale;
@@ -218,24 +242,24 @@ public final class LiquidGlassUniforms {
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    var w = widgets.get(i);
+                if (i < renderWidgets.size()) {
+                    var w = renderWidgets.get(i);
                     float rad = w.cornerRadius() * scale;
                     b.putVec4(rad, rad, rad, rad);
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    var style = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    var style = renderWidgets.get(i).style();
                     int c = style.getTintColor();
                     b.putVec4(ARGB.red(c) / 255f, ARGB.green(c) / 255f, ARGB.blue(c) / 255f, style.getTintAlpha());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     if (ReGlassConfig.INSTANCE.features.pixelatedGrid) {
                         b.putVec4(0f, 0f, 0f, 0f);
                     } else {
@@ -244,8 +268,8 @@ public final class LiquidGlassUniforms {
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     if (ReGlassConfig.INSTANCE.features.pixelatedGrid) {
                         b.putVec4(0f, 0f, s.getGlareRange(), s.getGlareHardness());
                     } else {
@@ -254,22 +278,22 @@ public final class LiquidGlassUniforms {
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     b.putVec4(s.getGlareConvergence(), s.getGlareOppositeFactor(), s.getGlareFactor(), s.getGlareAngleRad());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     b.putVec4(s.getSmoothing(), 0f, 0f, 0f);
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    var w = widgets.get(i);
+                if (i < renderWidgets.size()) {
+                    var w = renderWidgets.get(i);
                     ScreenRectangle sc = w.scissorArea();
                     if (sc != null) {
                         float sL = sc.left() * scale;
@@ -282,8 +306,8 @@ public final class LiquidGlassUniforms {
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     float sx = s.getShadowOffsetX() * scale;
                     float sy = s.getShadowOffsetY() * scale;
                     b.putVec4(s.getShadowExpand(), s.getShadowFactor(), sx, sy);
@@ -291,20 +315,20 @@ public final class LiquidGlassUniforms {
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     int col = s.getShadowColor();
                     b.putVec4(ARGB.red(col) / 255f, ARGB.green(col) / 255f, ARGB.blue(col) / 255f, s.getShadowColorAlpha());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
 
             for (int i = 0; i < MAX_WIDGETS; i++) {
-                if (i < widgets.size()) {
-                    WidgetStyle s = widgets.get(i).style();
+                if (i < renderWidgets.size()) {
+                    WidgetStyle s = renderWidgets.get(i).style();
                     int radius = Math.max(1, s.getBlurRadius());
                     Integer idx = blurRadiusToIndex.get(radius);
                     if (idx == null) idx = 0;
-                    var w = widgets.get(i);
+                    var w = renderWidgets.get(i);
                     long key = i;
                     FadeState fs = fades.computeIfAbsent(key, k -> new FadeState());
                     fs.hover = smoothToward(fs.hover, Math.max(0f, Math.min(1f, w.hover())), dtSeconds, 0.12f);
