@@ -185,7 +185,7 @@ public final class LiquidGlassUniforms {
         HashSet<Integer> requested = new HashSet<>();
         for (LiquidGlassGuiElementRenderState w : widgets) {
             WidgetStyle s = w.style();
-            requested.add(Math.max(0, s.getBlurRadius()));
+            requested.add(Math.max(1, s.getBlurRadius()));
         }
         List<Integer> sorted = requested.stream().sorted().toList();
         usedBlurRadiiOrdered = new ArrayList<>();
@@ -236,13 +236,21 @@ public final class LiquidGlassUniforms {
             for (int i = 0; i < MAX_WIDGETS; i++) {
                 if (i < widgets.size()) {
                     WidgetStyle s = widgets.get(i).style();
-                    b.putVec4(s.getRefThickness(), s.getRefFactor(), s.getRefDispersion(), s.getRefFresnelRange());
+                    if (ReGlassConfig.INSTANCE.features.pixelatedGrid) {
+                        b.putVec4(0f, 0f, 0f, 0f);
+                    } else {
+                        b.putVec4(s.getRefThickness(), s.getRefFactor(), s.getRefDispersion(), s.getRefFresnelRange());
+                    }
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
             for (int i = 0; i < MAX_WIDGETS; i++) {
                 if (i < widgets.size()) {
                     WidgetStyle s = widgets.get(i).style();
-                    b.putVec4(s.getRefFresnelHardness(), s.getRefFresnelFactor(), s.getGlareRange(), s.getGlareHardness());
+                    if (ReGlassConfig.INSTANCE.features.pixelatedGrid) {
+                        b.putVec4(0f, 0f, s.getGlareRange(), s.getGlareHardness());
+                    } else {
+                        b.putVec4(s.getRefFresnelHardness(), s.getRefFresnelFactor(), s.getGlareRange(), s.getGlareHardness());
+                    }
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
             for (int i = 0; i < MAX_WIDGETS; i++) {
@@ -293,11 +301,11 @@ public final class LiquidGlassUniforms {
             for (int i = 0; i < MAX_WIDGETS; i++) {
                 if (i < widgets.size()) {
                     WidgetStyle s = widgets.get(i).style();
-                    int radius = Math.max(0, s.getBlurRadius());
+                    int radius = Math.max(1, s.getBlurRadius());
                     Integer idx = blurRadiusToIndex.get(radius);
                     if (idx == null) idx = 0;
                     var w = widgets.get(i);
-                    long key = rectKey(w.x1(), w.y1(), w.x2(), w.y2());
+                    long key = i;
                     FadeState fs = fades.computeIfAbsent(key, k -> new FadeState());
                     fs.hover = smoothToward(fs.hover, Math.max(0f, Math.min(1f, w.hover())), dtSeconds, 0.12f);
                     fs.focus = smoothToward(fs.focus, Math.max(0f, Math.min(1f, w.focus())), dtSeconds, 0.18f);

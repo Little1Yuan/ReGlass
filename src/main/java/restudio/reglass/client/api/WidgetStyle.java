@@ -46,7 +46,7 @@ public class WidgetStyle {
     public WidgetStyle tint(int color, float alpha) { this.hasTint = true; this.tintColor = color; this.tintAlpha = alpha; return this; }
     public WidgetStyle smoothing(float factor) { this.hasSmoothing = true; this.smoothingFactor = factor; return this; }
     public WidgetStyle layer(int v) { this.hasLayer = true; this.layer = v; return this; }
-    public WidgetStyle blurRadius(int radius) { this.hasBlurRadius = true; this.blurRadius = Math.max(0, radius); return this; }
+    public WidgetStyle blurRadius(int radius) { this.hasBlurRadius = true; this.blurRadius = Math.max(1, radius); return this; }
     public WidgetStyle shadow(float expand, float factor, float offsetX, float offsetY) { this.hasShadow = true; this.shadowExpand = expand; this.shadowFactor = factor; this.shadowOffsetX = offsetX; this.shadowOffsetY = offsetY; return this; }
     public WidgetStyle shadowColor(int color, float alpha) { this.hasShadow = true; this.shadowColor = color; this.shadowColorAlpha = alpha; return this; }
     public WidgetStyle refractionThickness(float v) { this.hasRefraction = true; this.refThickness = v; return this; }

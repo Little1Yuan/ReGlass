@@ -77,6 +77,20 @@ public class ReGlassConfigScreen extends Screen {
         addPositionedWidget(enableHotbarButton, y).active = cfg.features.enableRedesign;
         y += widgetHeight + gap;
 
+        Button enableContainersButton = Button.builder(getFeatureText("Containers", cfg.features.containers), button -> {
+            cfg.features.containers = !cfg.features.containers;
+            button.setMessage(getFeatureText("Containers", cfg.features.containers));
+        }).bounds(widgetX, y, widgetWidth, widgetHeight).build();
+        addPositionedWidget(enableContainersButton, y).active = cfg.features.enableRedesign;
+        y += widgetHeight + gap;
+
+        Button containerTextPanelsButton = Button.builder(getFeatureText("Container Text Panels", cfg.features.containerTextPanels), button -> {
+            cfg.features.containerTextPanels = !cfg.features.containerTextPanels;
+            button.setMessage(getFeatureText("Container Text Panels", cfg.features.containerTextPanels));
+        }).bounds(widgetX, y, widgetWidth, widgetHeight).build();
+        addPositionedWidget(containerTextPanelsButton, y).active = cfg.features.enableRedesign && cfg.features.containers;
+        y += widgetHeight + gap;
+
         Button cancelDarkeningButton = Button.builder(getFeatureText("Cancel Screen Darkening", cfg.features.cancelScreenDarkening), button -> {
             cfg.features.cancelScreenDarkening = !cfg.features.cancelScreenDarkening;
             button.setMessage(getFeatureText("Cancel Screen Darkening", cfg.features.cancelScreenDarkening));

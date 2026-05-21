@@ -12,6 +12,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.Identifier;
+import org.lwjgl.glfw.GLFW;
+import restudio.reglass.client.api.ReGlassConfig;
 import restudio.reglass.client.api.WidgetStyle;
 import restudio.reglass.client.config.ReGlassSettingsIO;
 import restudio.reglass.mixin.accessor.OptionsAccessor;
@@ -23,7 +25,9 @@ public class ReGlassClient implements ClientModInitializer {
     private static final KeyMapping.Category KEY_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("reglass", "main"));
     private static final KeyMapping CONFIG_KEY = new KeyMapping("key.reglass.config", InputConstants.UNKNOWN.getValue(), KEY_CATEGORY);
     private static final KeyMapping PLAYGROUND_KEY = new KeyMapping("key.reglass.playground", InputConstants.UNKNOWN.getValue(), KEY_CATEGORY);
+    private static final KeyMapping TOGGLE_REDESIGN_KEY = new KeyMapping("key.reglass.toggle_redesign", InputConstants.UNKNOWN.getValue(), KEY_CATEGORY);
     private static boolean keyMappingsRegistered;
+    private static boolean toggleRedesignWasDown;
 
     public static Minecraft minecraftClient;
 
@@ -40,6 +44,7 @@ public class ReGlassClient implements ClientModInitializer {
                 }
                 registerKeyMappings(client);
             }
+            handleGlobalToggleRedesignKey(client);
             while (CONFIG_KEY.consumeClick()) {
                 if (client.screen == null) {
                     client.setScreen(new ReGlassConfigScreen(null));
@@ -55,13 +60,34 @@ public class ReGlassClient implements ClientModInitializer {
 
     private static void registerKeyMappings(Minecraft client) {
         KeyMapping[] existingMappings = client.options.keyMappings;
-        KeyMapping[] mappings = Arrays.copyOf(existingMappings, existingMappings.length + 2);
+        KeyMapping[] mappings = Arrays.copyOf(existingMappings, existingMappings.length + 3);
         mappings[existingMappings.length] = CONFIG_KEY;
         mappings[existingMappings.length + 1] = PLAYGROUND_KEY;
+        mappings[existingMappings.length + 2] = TOGGLE_REDESIGN_KEY;
         ((OptionsAccessor) client.options).setKeyMappings(mappings);
         KeyMapping.resetMapping();
         client.options.load();
         keyMappingsRegistered = true;
+    }
+
+    private static void handleGlobalToggleRedesignKey(Minecraft client) {
+        boolean down = isGlobalKeyDown(client, TOGGLE_REDESIGN_KEY);
+        if (down && !toggleRedesignWasDown) {
+            ReGlassConfig.INSTANCE.features.enableRedesign = !ReGlassConfig.INSTANCE.features.enableRedesign;
+            ReGlassSettingsIO.saveFromMemory();
+        }
+        toggleRedesignWasDown = down;
+    }
+
+    private static boolean isGlobalKeyDown(Minecraft client, KeyMapping keyMapping) {
+        if (keyMapping.isUnbound()) {
+            return false;
+        }
+        InputConstants.Key key = InputConstants.getKey(keyMapping.saveString());
+        if (key.getType() == InputConstants.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(client.getWindow().handle(), key.getValue()) == GLFW.GLFW_PRESS;
+        }
+        return InputConstants.isKeyDown(client.getWindow(), key.getValue());
     }
 
     public static class PlaygroundScreen extends Screen {

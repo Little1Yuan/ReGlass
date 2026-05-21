@@ -23,6 +23,8 @@ public abstract class SliderWidgetMixin extends AbstractWidget {
 
     @Unique
     WidgetStyle knobStyle = new WidgetStyle().smoothing(-0.005f).tint(0x000000, 0.1f);
+    @Unique
+    private double reglass$knobX = Double.NaN;
 
     public SliderWidgetMixin(int x, int y, int width, int height, Component message) {
         super(x, y, width, height, message);
@@ -36,7 +38,18 @@ public abstract class SliderWidgetMixin extends AbstractWidget {
 
         ci.cancel();
 
-        int knobX = (int) (this.getX() + (((SliderWidgetAccessor) this).getValue() * (this.getWidth() - 4)));
+        double targetKnobX = this.getX() + (((SliderWidgetAccessor) this).getValue() * (this.getWidth() - 4));
+        if (Double.isNaN(this.reglass$knobX)) {
+            this.reglass$knobX = targetKnobX;
+        }
+        double deltaTicks = Minecraft.getInstance().getDeltaTracker().getRealtimeDeltaTicks();
+        double deltaSeconds = deltaTicks / 20.0;
+        double alpha = 1.0 - Math.exp(-deltaSeconds / 0.08);
+        if (alpha < 0.0) alpha = 0.0;
+        if (alpha > 1.0) alpha = 1.0;
+        this.reglass$knobX += (targetKnobX - this.reglass$knobX) * alpha;
+
+        int knobX = (int)Math.round(this.reglass$knobX);
         boolean hoveredBg = this.isMouseOver(mouseX, mouseY);
         boolean knobHovered = mouseX >= knobX && mouseX < knobX + 4 && mouseY >= getY() && mouseY < getY() + getHeight();
         boolean focus = this.isFocused();

@@ -167,16 +167,13 @@ public final class LiquidGlassPrecomputeRuntime {
 
         int max = Math.min(LiquidGlassUniforms.MAX_BLUR_LEVELS, requestedRadii == null ? 0 : requestedRadii.size());
         if (max == 0) {
-            int r = ReGlassConfig.INSTANCE.defaultBlurRadius;
+            int r = Math.max(1, ReGlassConfig.INSTANCE.defaultBlurRadius);
             requestedRadii = List.of(r);
             max = 1;
         }
 
         for (int k = 0; k < max; k++) {
-            int radius = requestedRadii.get(k);
-            if (radius <= 0) {
-                continue;
-            }
+            int radius = Math.max(1, requestedRadii.get(k));
 
             ensureOutputForRadius(w, h, radius);
 
