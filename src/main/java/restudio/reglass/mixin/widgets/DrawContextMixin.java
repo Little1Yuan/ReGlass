@@ -89,6 +89,10 @@ public abstract class DrawContextMixin {
     @Inject(method = "blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V",
             at = @At("HEAD"), cancellable = true)
     private void reglass$onBlitTextureNoSourceSize(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight, CallbackInfo ci) {
+        if (reglass$handleModMenuButtonTexture(texture, x, y, u, v, width, height, textureWidth, textureHeight)) {
+            ci.cancel();
+            return;
+        }
         if (reglass$shouldSkipContainerTexture(texture, width, height)) {
             ci.cancel();
         }
@@ -97,6 +101,10 @@ public abstract class DrawContextMixin {
     @Inject(method = "blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIII)V",
             at = @At("HEAD"), cancellable = true)
     private void reglass$onBlitTextureFull(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int sourceWidth, int sourceHeight, int textureWidth, int textureHeight, CallbackInfo ci) {
+        if (reglass$handleModMenuButtonTexture(texture, x, y, u, v, width, height, textureWidth, textureHeight)) {
+            ci.cancel();
+            return;
+        }
         if (reglass$shouldSkipContainerTexture(texture, width, height)) {
             ci.cancel();
         }
@@ -105,9 +113,57 @@ public abstract class DrawContextMixin {
     @Inject(method = "blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
             at = @At("HEAD"), cancellable = true)
     private void reglass$onBlitTextureFullWithColor(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int sourceWidth, int sourceHeight, int textureWidth, int textureHeight, int color, CallbackInfo ci) {
+        if (reglass$handleModMenuButtonTexture(texture, x, y, u, v, width, height, textureWidth, textureHeight)) {
+            ci.cancel();
+            return;
+        }
         if (reglass$shouldSkipContainerTexture(texture, width, height)) {
             ci.cancel();
         }
+    }
+
+    @Unique
+    private boolean reglass$handleModMenuButtonTexture(Identifier texture, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight) {
+        ReGlassConfig cfg = ReGlassConfig.INSTANCE;
+        if (!cfg.features.enableRedesign || !cfg.features.buttons) {
+            return false;
+        }
+        if (!texture.getNamespace().equals("modmenu")) {
+            return false;
+        }
+
+        String path = texture.getPath();
+        if (!path.startsWith("textures/gui/") || !path.substring("textures/gui/".length()).contains("button")) {
+            return false;
+        }
+
+        String fileName = path.substring("textures/gui/".length());
+        Identifier iconTexture = Identifier.fromNamespaceAndPath("reglass", "textures/gui/modmenu/" + fileName);
+        boolean hovered = v > 0f && v < 40f;
+        boolean disabled = v >= 40f;
+
+        ReGlassApi.create((GuiGraphicsExtractor)(Object) this)
+                .dimensions(x, y, width, height)
+                .cornerRadius(Math.min(width, height) * 0.5f)
+                .hover(hovered ? 1f : 0f)
+                .style(WidgetStyle.create()
+                        .tint(disabled ? 0x000000 : 0xFFFFFFFF, disabled ? 0.36f : 0f)
+                        .layer(3))
+                .screenSpace()
+                .render();
+
+        ((GuiGraphicsExtractor)(Object) this).blit(
+                RenderPipelines.GUI_TEXTURED,
+                iconTexture,
+                x,
+                y,
+                u,
+                v,
+                width,
+                height,
+                textureWidth,
+                textureHeight);
+        return true;
     }
 
     @Unique

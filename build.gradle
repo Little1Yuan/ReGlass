@@ -1,4 +1,5 @@
 plugins {
+	id 'dev.kikugie.stonecutter'
 	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 }
@@ -7,12 +8,14 @@ version = project.mod_version
 group = project.maven_group
 
 base {
-	archivesName = project.archives_base_name
+	archivesName = "${project.archives_base_name}-${project.minecraft_version}"
 }
 
 repositories {
-
-
+	maven {
+		name = 'TerraformersMC'
+		url = 'https://maven.terraformersmc.com/releases/'
+	}
 }
 
 dependencies {
@@ -21,6 +24,7 @@ dependencies {
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 	
 }
 
@@ -39,15 +43,23 @@ sourceSets {
 }
 
 processResources {
-	inputs.property "version", project.version
+	def properties = [
+			version: project.version,
+			loader_dependency: project.loader_dependency,
+			minecraft_dependency: project.minecraft_dependency,
+			java_dependency: project.java_dependency,
+			fabric_api_dependency: project.fabric_api_dependency
+	]
+
+	inputs.properties properties
 
 	filesMatching("fabric.mod.json") {
-		expand "version": inputs.properties.version
+		expand properties
 	}
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
+	it.options.release = project.java_version.toInteger()
 }
 
 java {
@@ -56,11 +68,11 @@ java {
     withSourcesJar()
 
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
+		languageVersion = JavaLanguageVersion.of(project.java_version.toInteger())
 	}
 
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	sourceCompatibility = JavaVersion.toVersion(project.java_version)
+	targetCompatibility = JavaVersion.toVersion(project.java_version)
 }
 
 jar {
