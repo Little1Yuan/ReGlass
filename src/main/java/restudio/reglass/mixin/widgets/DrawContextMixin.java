@@ -14,14 +14,14 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.Identifier;
 //#endif
+import java.util.HashMap;
+import java.util.Map;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-//#if MC >= 26
 import restudio.reglass.client.LiquidGlassUniforms;
-//#endif
 import restudio.reglass.client.api.ReGlassApi;
 import restudio.reglass.client.api.ReGlassConfig;
 import restudio.reglass.client.api.WidgetStyle;
@@ -57,6 +57,8 @@ public abstract class DrawContextMixin {
 //#else
     private static final Identifier VILLAGER_TRADE_ARROW_OUT_OF_STOCK = Identifier.ofVanilla("container/villager/trade_arrow_out_of_stock");
 //#endif
+    @Unique
+    private static final Map<Long, Double> REGLASS$SCROLLER_Y = new HashMap<>();
 
 //#if MC >= 26
     @Inject(method = "blurBeforeThisStratum", at = @At("HEAD"))
@@ -447,6 +449,8 @@ public abstract class DrawContextMixin {
         if (disabled) {
             return;
         }
+        long scrollerKey = reglass$scrollerKey(x, width, height);
+        double renderY = reglass$getInterpolatedScrollerY(scrollerKey, y);
         int thumbWidth = Math.max(5, Math.min(width, 8));
         int thumbHeight = Math.max(12, height);
         int cx = x + width / 2;
@@ -455,16 +459,51 @@ public abstract class DrawContextMixin {
 //#else
         ReGlassApi.create((DrawContext)(Object) this)
 //#endif
-                .dimensions(cx - thumbWidth / 2, y, thumbWidth, thumbHeight)
+                .dimensions(cx - thumbWidth / 2, (int)Math.round(renderY), thumbWidth, thumbHeight)
                 .cornerRadius(thumbWidth * 0.5f)
                 .hover(0.7f)
                 .style(WidgetStyle.create()
                         .tint(0x000000, 0.18f)
+                        .fadeKey(scrollerKey)
                         .layer(4))
 //#if MC >= 26
                 .screenSpace()
 //#endif
                 .render();
+    }
+
+    @Unique
+    private double reglass$getInterpolatedScrollerY(long key, int y) {
+        Double current = REGLASS$SCROLLER_Y.get(key);
+        if (current == null || Math.abs(current - y) > 80.0) {
+            current = (double)y;
+        } else {
+            double dt = LiquidGlassUniforms.get().getFrameDeltaSeconds();
+            double alpha = 1.0 - Math.exp(-Math.max(0.0, dt) / 0.08);
+            if (alpha < 0.0) alpha = 0.0;
+            if (alpha > 1.0) alpha = 1.0;
+            current += (y - current) * alpha;
+            if (Math.abs(current - y) < 0.01) {
+                current = (double)y;
+            }
+        }
+        if (REGLASS$SCROLLER_Y.size() > 64) {
+            REGLASS$SCROLLER_Y.clear();
+        }
+        REGLASS$SCROLLER_Y.put(key, current);
+        return current;
+    }
+
+    @Unique
+    private long reglass$scrollerKey(int x, int width, int height) {
+        long h = 1469598103934665603L;
+        h ^= x;
+        h *= 1099511628211L;
+        h ^= width;
+        h *= 1099511628211L;
+        h ^= height;
+        h *= 1099511628211L;
+        return h;
     }
 
     @Unique
