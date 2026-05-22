@@ -429,11 +429,7 @@ public final class LiquidGlassUniforms {
                     Integer idx = blurRadiusToIndex.get(radius);
                     if (idx == null) idx = 0;
                     var w = renderWidgets.get(i);
-//#if MC >= 26
-                    long key = i;
-//#else
                     long key = rectKey(w.x1(), w.y1(), w.x2(), w.y2());
-//#endif
                     FadeState fs = fades.computeIfAbsent(key, k -> new FadeState());
                     fs.hover = smoothToward(fs.hover, Math.max(0f, Math.min(1f, w.hover())), dtSeconds, 0.12f);
                     fs.focus = smoothToward(fs.focus, Math.max(0f, Math.min(1f, w.focus())), dtSeconds, 0.18f);
