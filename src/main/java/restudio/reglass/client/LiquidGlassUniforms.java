@@ -345,29 +345,13 @@ public final class LiquidGlassUniforms {
             for (int i = 0; i < MAX_WIDGETS; i++) {
                 if (i < renderWidgets.size()) {
                     WidgetStyle s = renderWidgets.get(i).style();
-                    if (ReGlassConfig.INSTANCE.features.pixelatedGrid) {
-//#if MC >= 26
-                        b.putVec4(0f, 0f, 0f, 0f);
-//#else
-                        b.putVec4(0f, 1f, 0f, 0f);
-//#endif
-                    } else {
-                        b.putVec4(s.getRefThickness(), s.getRefFactor(), s.getRefDispersion(), s.getRefFresnelRange());
-                    }
+                    b.putVec4(s.getRefThickness(), s.getRefFactor(), s.getRefDispersion(), s.getRefFresnelRange());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
             for (int i = 0; i < MAX_WIDGETS; i++) {
                 if (i < renderWidgets.size()) {
                     WidgetStyle s = renderWidgets.get(i).style();
-                    if (ReGlassConfig.INSTANCE.features.pixelatedGrid) {
-//#if MC >= 26
-                        b.putVec4(0f, 0f, s.getGlareRange(), s.getGlareHardness());
-//#else
-                        b.putVec4(1f, 0f, s.getGlareRange(), s.getGlareHardness());
-//#endif
-                    } else {
-                        b.putVec4(s.getRefFresnelHardness(), s.getRefFresnelFactor(), s.getGlareRange(), s.getGlareHardness());
-                    }
+                    b.putVec4(s.getRefFresnelHardness(), s.getRefFresnelFactor(), s.getGlareRange(), s.getGlareHardness());
                 } else b.putVec4(0f, 0f, 0f, 0f);
             }
             for (int i = 0; i < MAX_WIDGETS; i++) {
