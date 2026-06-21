@@ -98,9 +98,6 @@ public final class LiquidGlassPrecomputeRuntime {
                     .withVertexShader(VS_ID)
                     .withFragmentShader(BLUR_ID)
 //#if MC >= 26.2
-                    // No "Projection": blit_fullscreen.vsh emits clip-space directly and
-                    // neither blur shader uses it. The Vulkan backend rejects a layout
-                    // entry no shader binds (-> null pipeline crash).
                     .withBindGroupLayout(
                             BindGroupLayout.builder()
                                     .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
@@ -110,8 +107,6 @@ public final class LiquidGlassPrecomputeRuntime {
                     )
                     .withVertexBinding(0, DefaultVertexFormat.POSITION)
                     .withPrimitiveTopology(PrimitiveTopology.QUADS)
-                    // No depth-stencil state on this depth-less pass (null pipeline crash
-                    // on Vulkan otherwise); declare the colour target to match.
                     .withColorTargetState(ColorTargetState.DEFAULT)
 //#else
                     .withUniform("Projection", UniformType.UNIFORM_BUFFER)
