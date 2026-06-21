@@ -74,7 +74,7 @@ public class ReGlassConfigScreen extends Screen {
             cfg.features.enableRedesign = !cfg.features.enableRedesign;
             button.setMessage(getEnableRedesignText());
 //#if MC >= 26
-            this.minecraft.setScreen(new ReGlassConfigScreen(this.parent));
+            this.minecraft.setScreenAndShow(new ReGlassConfigScreen(this.parent));
         }).bounds(widgetX, y, widgetWidth, widgetHeight).build();
 //#else
             this.client.setScreen(new ReGlassConfigScreen(this.parent));
@@ -328,7 +328,7 @@ public class ReGlassConfigScreen extends Screen {
             ReGlassSettingsIO.apply(new ReGlassSettingsIO.Data());
 //#if MC >= 26
             if (this.minecraft != null) {
-                this.minecraft.setScreen(new ReGlassConfigScreen(this.parent));
+                this.minecraft.setScreenAndShow(new ReGlassConfigScreen(this.parent));
 //#else
             if (this.client != null) {
                 this.client.setScreen(new ReGlassConfigScreen(this.parent));
@@ -378,7 +378,7 @@ public class ReGlassConfigScreen extends Screen {
 //#endif
 
 //#if MC >= 26
-        previewRounded = addRenderableWidget(new LiquidGlassWidget(previewX, previewY + 20, 140, 60, s2).setCornerRadiusPx(16f));
+        previewRounded = addRenderableWidget(new LiquidGlassWidget(previewX + 20, previewY + 120, 140, 60, s2).setCornerRadiusPx(16f));
 //#else
         previewRounded = addDrawableChild(new LiquidGlassWidget(previewX + 110, previewY + 20, 140, 60, s2).setCornerRadiusPx(16f));
 //#endif
@@ -485,7 +485,7 @@ public class ReGlassConfigScreen extends Screen {
         ReGlassSettingsIO.saveFromMemory();
 //#if MC >= 26
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.setScreenAndShow(this.parent);
 //#else
         if (this.client != null) {
             this.client.setScreen(this.parent);

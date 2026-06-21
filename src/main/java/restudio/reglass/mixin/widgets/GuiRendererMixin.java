@@ -6,7 +6,9 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.List;
 import net.minecraft.client.gui.render.GuiRenderer;
-//#if MC >= 26
+//#if MC >= 26.2
+import net.minecraft.client.renderer.state.gui.GuiRenderState;
+//#elseif MC >= 26
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -29,7 +31,9 @@ public class GuiRendererMixin implements QuadVertexBufferProvider {
     private GpuBuffer reglass$quadVertexBuffer;
 
     @Inject(method = "<init>", at = @At("TAIL"))
-//#if MC >= 26
+//#if MC >= 26.2
+    private void reglass$onInit(GuiRenderState state, net.minecraft.client.renderer.feature.FeatureRenderDispatcher dispatcher, List specialElementRenderers, CallbackInfo ci) {
+//#elseif MC >= 26
     private void reglass$onInit(GuiRenderState state, MultiBufferSource.BufferSource vertexConsumers, SubmitNodeCollector queue, net.minecraft.client.renderer.feature.FeatureRenderDispatcher dispatcher, List specialElementRenderers, CallbackInfo ci) {
 //#else
     private void reglass$onInit(GuiRenderState state, VertexConsumerProvider.Immediate vertexConsumers, OrderedRenderCommandQueue queue, net.minecraft.client.render.command.RenderDispatcher dispatcher, List specialElementRenderers, CallbackInfo ci) {

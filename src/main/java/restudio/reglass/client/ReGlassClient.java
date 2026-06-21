@@ -14,7 +14,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
+//#if MC < 26.2
 import net.minecraft.ChatFormatting;
+//#endif
 import net.minecraft.resources.Identifier;
 //#else
 import net.minecraft.client.MinecraftClient;
@@ -81,24 +83,38 @@ public class ReGlassClient implements ClientModInitializer {
                 registerKeyMappings(client);
             }
             handleGlobalToggleRedesignKey(client);
-//#if MC >= 26
+//#if MC >= 26.2
+            while (CONFIG_KEY.consumeClick()) {
+                if (client.gui.screen() == null) {
+//#elseif MC >= 26
             while (CONFIG_KEY.consumeClick()) {
                 if (client.screen == null) {
 //#else
             while (CONFIG_KEY.wasPressed()) {
                 if (client.currentScreen == null) {
 //#endif
+//#if MC >= 26.2
+                    client.setScreenAndShow(new ReGlassConfigScreen(null));
+//#else
                     client.setScreen(new ReGlassConfigScreen(null));
+//#endif
                 }
             }
-//#if MC >= 26
+//#if MC >= 26.2
+            while (PLAYGROUND_KEY.consumeClick()) {
+                if (client.gui.screen() == null) {
+//#elseif MC >= 26
             while (PLAYGROUND_KEY.consumeClick()) {
                 if (client.screen == null) {
 //#else
             while (PLAYGROUND_KEY.wasPressed()) {
                 if (client.currentScreen == null) {
 //#endif
+//#if MC >= 26.2
+                    client.setScreenAndShow(new PlaygroundScreen());
+//#else
                     client.setScreen(new PlaygroundScreen());
+//#endif
                 }
             }
         });
@@ -180,7 +196,10 @@ public class ReGlassClient implements ClientModInitializer {
         protected void init() {
             super.init();
 
-//#if MC >= 26
+//#if MC >= 26.2
+            WidgetStyle customStyle = WidgetStyle.create().tint(0xFFAA00, 0.4f).blurRadius(0).shadow(25f, 0.2f, 0f, 3f).smoothing(.05f).shadowColor(0x000000, 1.0f);
+            addRenderableWidget(new LiquidGlassWidget(width / 2 - 75, height / 2 - 25, 150, 50, customStyle).setMoveable(true));
+//#elseif MC >= 26
             WidgetStyle customStyle = WidgetStyle.create().tint(ChatFormatting.GOLD.getColor(), 0.4f).blurRadius(0).shadow(25f, 0.2f, 0f, 3f).smoothing(.05f).shadowColor(0x000000, 1.0f);
             addRenderableWidget(new LiquidGlassWidget(width / 2 - 75, height / 2 - 25, 150, 50, customStyle).setMoveable(true));
             addRenderableWidget(Button.builder(Component.literal("Toggle BG Blur"), b -> blur = !blur).bounds(10, 10, 120, 20).build());

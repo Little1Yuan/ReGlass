@@ -1,7 +1,11 @@
 package restudio.reglass.client;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-//#if MC >= 26
+//#if MC >= 26.2
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+//#elseif MC >= 26
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.platform.CompareOp;
 //#else
@@ -36,6 +40,29 @@ public final class LiquidGlassPipelines {
                     .withVertexShader(Identifier.of("reglass", "core/blit_fullscreen"))
                     .withFragmentShader(Identifier.of("reglass", "program/liquid_glass_gui"))
 //#endif
+//#if MC >= 26.2
+                    //Vulkan requires pipeline layouts to match actual shader bindings
+                    //unused entries can break pipeline creation
+                    .withBindGroupLayout(
+                            BindGroupLayout.builder()
+                                    .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
+                                    .withUniform("CustomUniforms", UniformType.UNIFORM_BUFFER)
+                                    .withUniform("WidgetInfo", UniformType.UNIFORM_BUFFER)
+                                    .withUniform("BgConfig", UniformType.UNIFORM_BUFFER)
+                                    .withSampler("Sampler0")
+                                    .withSampler("Sampler1")
+                                    .withSampler("Sampler2")
+                                    .withSampler("Sampler3")
+                                    .withSampler("Sampler4")
+                                    .withSampler("Sampler5")
+                                    .build()
+                    )
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION)
+                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                    //Minecraft leaves the no-depth Vulkan pipeline variant invalid, which can crash when bound.
+                    //the blend attachment still has to match the color target format
+                    .withColorTargetState(ColorTargetState.DEFAULT);
+//#else
                     .withUniform("Projection", UniformType.UNIFORM_BUFFER)
                     .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
                     .withUniform("CustomUniforms", UniformType.UNIFORM_BUFFER)
@@ -55,9 +82,14 @@ public final class LiquidGlassPipelines {
                     .withDepthWrite(false)
                     .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS);
 //#endif
+//#endif
 
             LIQUID_GLASS_GUI = b.build();
+//#if MC >= 26.2
+            RenderSystem.getDevice().precompilePipeline(LIQUID_GLASS_GUI);
+//#else
             RenderSystem.getDevice().precompilePipeline(LIQUID_GLASS_GUI, null);
+//#endif
         }
         return LIQUID_GLASS_GUI;
     }

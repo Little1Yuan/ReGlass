@@ -8,10 +8,17 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
+//#if MC >= 26.2
+import com.mojang.blaze3d.PrimitiveTopology;
+//#endif
 import com.mojang.blaze3d.vertex.VertexFormat;
 import java.util.List;
 import java.util.OptionalDouble;
+//#if MC >= 26.2
+import java.util.Optional;
+//#else
 import java.util.OptionalInt;
+//#endif
 //#if MC >= 26
 import net.minecraft.client.Minecraft;
 //#else
@@ -84,7 +91,9 @@ public abstract class GameRendererMixin {
             List<Integer> radii = uniforms.getUsedBlurRadiiOrdered();
             LiquidGlassPrecomputeRuntime.get().setRequestedRadii(radii);
             LiquidGlassPrecomputeRuntime.get().run();
-//#if MC >= 26
+//#if MC >= 26.2
+            RenderTarget mainFb = this.minecraft.gameRenderer.mainRenderTarget();
+//#elseif MC >= 26
             RenderTarget mainFb = this.minecraft.getMainRenderTarget();
 //#else
             Framebuffer mainFb = this.client.getFramebuffer();
@@ -96,7 +105,11 @@ public abstract class GameRendererMixin {
 //#else
                     mainFb.getColorAttachmentView(),
 //#endif
+//#if MC >= 26.2
+                    Optional.empty(),
+//#else
                     OptionalInt.empty(),
+//#endif
 //#if MC >= 26
                     mainFb.useDepth ? mainFb.getDepthTextureView() : null,
 //#else
@@ -107,7 +120,9 @@ public abstract class GameRendererMixin {
                 RenderPipeline pipeline = LiquidGlassPipelines.getGuiPipeline();
                 pass.setPipeline(pipeline);
 
+//#if MC < 26.2
                 RenderSystem.bindDefaultUniforms(pass);
+//#endif
                 pass.setUniform("SamplerInfo", uniforms.getSamplerInfoBuffer());
                 pass.setUniform("CustomUniforms", uniforms.getCustomUniformsBuffer());
                 pass.setUniform("WidgetInfo", uniforms.getWidgetInfoBuffer());
@@ -120,14 +135,21 @@ public abstract class GameRendererMixin {
 
                 GuiRenderer guiRenderer = ((GameRendererAccessor) this).getGuiRenderer();
                 GpuBuffer quadVB = ((QuadVertexBufferProvider) guiRenderer).getQuadVertexBuffer();
-//#if MC >= 26
+//#if MC >= 26.2
+                RenderSystem.AutoStorageIndexBuffer quadIBInfo = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+                com.mojang.blaze3d.buffers.GpuBuffer quadIB = quadIBInfo.getBuffer(6);
+//#elseif MC >= 26
                 RenderSystem.AutoStorageIndexBuffer quadIBInfo = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
                 com.mojang.blaze3d.buffers.GpuBuffer quadIB = quadIBInfo.getBuffer(6);
 //#else
                 RenderSystem.ShapeIndexBuffer quadIBInfo = RenderSystem.getSequentialBuffer(VertexFormat.DrawMode.QUADS);
                 com.mojang.blaze3d.buffers.GpuBuffer quadIB = quadIBInfo.getIndexBuffer(6);
 //#endif
+//#if MC >= 26.2
+                pass.setVertexBuffer(0, quadVB.slice());
+//#else
                 pass.setVertexBuffer(0, quadVB);
+//#endif
 //#if MC >= 26
                 pass.setIndexBuffer(quadIB, quadIBInfo.type());
 //#else
@@ -164,7 +186,11 @@ public abstract class GameRendererMixin {
 //#endif
                     }
                 }
+//#if MC >= 26.2
+                pass.drawIndexed(6, 1, 0, 0, 0);
+//#else
                 pass.drawIndexed(0, 0, 6, 1);
+//#endif
             }
         }
     }

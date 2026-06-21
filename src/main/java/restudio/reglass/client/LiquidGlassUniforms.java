@@ -116,15 +116,24 @@ public final class LiquidGlassUniforms {
     public void uploadSharedUniforms() {
 //#if MC >= 26
         Minecraft mc = Minecraft.getInstance();
+//#if MC >= 26.2
+        int outW = mc.gameRenderer.mainRenderTarget().width;
+        int outH = mc.gameRenderer.mainRenderTarget().height;
+//#else
         int outW = mc.getMainRenderTarget().width;
         int outH = mc.getMainRenderTarget().height;
+//#endif
 //#else
         MinecraftClient mc = MinecraftClient.getInstance();
         int outW = mc.getFramebuffer().textureWidth;
         int outH = mc.getFramebuffer().textureHeight;
 //#endif
 
+//#if MC >= 26.2
+        try (var map = samplerInfo.map(false, true)) {
+//#else
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(samplerInfo, false, true)) {
+//#endif
             Std140Builder b = Std140Builder.intoBuffer(map.data());
             b.putVec2((float) outW, (float) outH);
             b.putVec2((float) outW, (float) outH);
@@ -135,7 +144,11 @@ public final class LiquidGlassUniforms {
 //#if MC >= 26
         GLFW.glfwGetCursorPos(mc.getWindow().handle(), mx, my);
         float scale = (float) mc.getWindow().getGuiScale();
+//#if MC >= 26.2
+        int fbH = mc.gameRenderer.mainRenderTarget().height;
+//#else
         int fbH = mc.getMainRenderTarget().height;
+//#endif
 //#else
         GLFW.glfwGetCursorPos(mc.getWindow().getHandle(), mx, my);
         float scale = (float) mc.getWindow().getScaleFactor();
@@ -145,7 +158,11 @@ public final class LiquidGlassUniforms {
         float time = (float) GLFW.glfwGetTime();
         ReGlassConfig config = ReGlassConfig.INSTANCE;
 
+//#if MC >= 26.2
+        try (var map = customUniforms.map(false, true)) {
+//#else
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(customUniforms, false, true)) {
+//#endif
             Std140Builder b = Std140Builder.intoBuffer(map.data());
             b.putFloat(time);
             b.align(16);
@@ -174,7 +191,11 @@ public final class LiquidGlassUniforms {
             b.putFloat(ReGlassAnim.INSTANCE.focusBorderSpeed());
         }
 
+//#if MC >= 26.2
+        try (var map = bgConfig.map(false, true)) {
+//#else
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(bgConfig, false, true)) {
+//#endif
             Std140Builder b = Std140Builder.intoBuffer(map.data());
             b.putFloat(ReGlassAnim.INSTANCE.shadowExpand());
             b.putFloat(ReGlassAnim.INSTANCE.shadowFactor());
@@ -226,7 +247,11 @@ public final class LiquidGlassUniforms {
     public void uploadWidgetInfo() {
 //#if MC >= 26
         Minecraft mc = Minecraft.getInstance();
+//#if MC >= 26.2
+        int fbH = mc.gameRenderer.mainRenderTarget().height;
+//#else
         int fbH = mc.getMainRenderTarget().height;
+//#endif
         float scale = (float) mc.getWindow().getGuiScale();
         List<LiquidGlassGuiElementRenderState> renderWidgets = new ArrayList<>(widgets);
         renderWidgets.sort((a, b) -> Integer.compare(a.style().getLayer(), b.style().getLayer()));
@@ -290,7 +315,11 @@ public final class LiquidGlassUniforms {
         }
 
 //#endif
+//#if MC >= 26.2
+        try (var map = widgetInfo.map(false, true)) {
+//#else
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(widgetInfo, false, true)) {
+//#endif
             Std140Builder b = Std140Builder.intoBuffer(map.data());
             b.putFloat((float) renderWidgets.size());
             b.align(16);
@@ -389,7 +418,9 @@ public final class LiquidGlassUniforms {
                         float sB = sc.getBottom() * scale;
 //#endif
                         b.putVec4(sL, fbH - sB, sR, fbH - sT);
-//#if MC >= 26
+//#if MC >= 26.2
+                    } else b.putVec4(0f, 0f, (float) mc.gameRenderer.mainRenderTarget().width, (float) mc.gameRenderer.mainRenderTarget().height);
+//#elseif MC >= 26
                     } else b.putVec4(0f, 0f, (float) mc.getMainRenderTarget().width, (float) mc.getMainRenderTarget().height);
 //#else
                     } else b.putVec4(0f, 0f, (float) mc.getFramebuffer().textureWidth, (float) mc.getFramebuffer().textureHeight);
