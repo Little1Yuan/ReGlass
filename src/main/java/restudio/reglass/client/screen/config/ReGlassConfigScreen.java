@@ -328,7 +328,7 @@ public class ReGlassConfigScreen extends Screen {
             ReGlassSettingsIO.apply(new ReGlassSettingsIO.Data());
 //#if MC >= 26
             if (this.minecraft != null) {
-                this.minecraft.setScreenAndShow(new ReGlassConfigScreen(this.parent));
+                this.minecraft.gui.setScreen(new ReGlassConfigScreen(this.parent));
 //#else
             if (this.client != null) {
                 this.client.setScreen(new ReGlassConfigScreen(this.parent));
@@ -485,7 +485,7 @@ public class ReGlassConfigScreen extends Screen {
         ReGlassSettingsIO.saveFromMemory();
 //#if MC >= 26
         if (this.minecraft != null) {
-            this.minecraft.setScreenAndShow(this.parent);
+            this.minecraft.gui.setScreen(this.parent);
 //#else
         if (this.client != null) {
             this.client.setScreen(this.parent);
