@@ -94,7 +94,7 @@ public class ReGlassClient implements ClientModInitializer {
                 if (client.currentScreen == null) {
 //#endif
 //#if MC >= 26.2
-                    client.setScreenAndShow(new ReGlassConfigScreen(null));
+                    client.gui.setScreen(new ReGlassConfigScreen(null));
 //#else
                     client.setScreen(new ReGlassConfigScreen(null));
 //#endif
@@ -111,7 +111,7 @@ public class ReGlassClient implements ClientModInitializer {
                 if (client.currentScreen == null) {
 //#endif
 //#if MC >= 26.2
-                    client.setScreenAndShow(new PlaygroundScreen());
+                    client.gui.setScreen(new PlaygroundScreen());
 //#else
                     client.setScreen(new PlaygroundScreen());
 //#endif

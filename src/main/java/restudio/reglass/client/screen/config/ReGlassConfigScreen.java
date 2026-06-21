@@ -74,7 +74,7 @@ public class ReGlassConfigScreen extends Screen {
             cfg.features.enableRedesign = !cfg.features.enableRedesign;
             button.setMessage(getEnableRedesignText());
 //#if MC >= 26
-            this.minecraft.setScreenAndShow(new ReGlassConfigScreen(this.parent));
+            this.minecraft.gui.setScreen(new ReGlassConfigScreen(this.parent));
         }).bounds(widgetX, y, widgetWidth, widgetHeight).build();
 //#else
             this.client.setScreen(new ReGlassConfigScreen(this.parent));
