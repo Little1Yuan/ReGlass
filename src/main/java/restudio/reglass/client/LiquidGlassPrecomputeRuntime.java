@@ -2,13 +2,17 @@ package restudio.reglass.client;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
-//#if MC >= 26
+//#if MC >= 26.2
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+//#elseif MC >= 26
 import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.platform.CompareOp;
 //#endif
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-//#if MC >= 26
-import com.mojang.blaze3d.platform.CompareOp;
-//#else
+//#if MC < 26
 import com.mojang.blaze3d.platform.DepthTestFunction;
 //#endif
 import com.mojang.blaze3d.systems.RenderPass;
@@ -16,12 +20,18 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
+//#if MC < 26.2
 import com.mojang.blaze3d.textures.TextureFormat;
+//#endif
 import com.mojang.blaze3d.vertex.VertexFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+//#if MC >= 26.2
+import java.util.Optional;
+//#else
 import java.util.OptionalInt;
+//#endif
 //#if MC >= 26
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.shaders.UniformType;
@@ -87,6 +97,18 @@ public final class LiquidGlassPrecomputeRuntime {
 //#endif
                     .withVertexShader(VS_ID)
                     .withFragmentShader(BLUR_ID)
+//#if MC >= 26.2
+                    .withBindGroupLayout(
+                            BindGroupLayout.builder()
+                                    .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
+                                    .withUniform("Config", UniformType.UNIFORM_BUFFER)
+                                    .withSampler("DiffuseSampler")
+                                    .build()
+                    )
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION)
+                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                    .withColorTargetState(ColorTargetState.DEFAULT)
+//#else
                     .withUniform("Projection", UniformType.UNIFORM_BUFFER)
                     .withUniform("SamplerInfo", UniformType.UNIFORM_BUFFER)
                     .withUniform("Config", UniformType.UNIFORM_BUFFER)
@@ -99,8 +121,13 @@ public final class LiquidGlassPrecomputeRuntime {
                     .withDepthWrite(false)
                     .withVertexFormat(VertexFormats.POSITION, VertexFormat.DrawMode.QUADS)
 //#endif
+//#endif
                     .build();
+//#if MC >= 26.2
+            RenderSystem.getDevice().precompilePipeline(blurPipeline);
+//#else
             RenderSystem.getDevice().precompilePipeline(blurPipeline, null);
+//#endif
         }
 
         if (samplerInfoUbo == null) {
@@ -122,12 +149,12 @@ public final class LiquidGlassPrecomputeRuntime {
                 if (blurTempView != null) blurTempView.close();
                 blurTempTex.close();
             }
-            blurTempTex = RenderSystem.getDevice().createTexture("reglass blurTemp", 12, TextureFormat.RGBA8, w, h, 1, 1);
-//#if MC >= 26
-             blurTempView = RenderSystem.getDevice().createTextureView(blurTempTex);
+//#if MC >= 26.2
+            blurTempTex = RenderSystem.getDevice().createTexture("reglass blurTemp", 12, GpuFormat.RGBA8_UNORM, w, h, 1, 1);
 //#else
-            blurTempView = RenderSystem.getDevice().createTextureView(blurTempTex);
+            blurTempTex = RenderSystem.getDevice().createTexture("reglass blurTemp", 12, TextureFormat.RGBA8, w, h, 1, 1);
 //#endif
+            blurTempView = RenderSystem.getDevice().createTextureView(blurTempTex);
         }
     }
 
@@ -139,7 +166,11 @@ public final class LiquidGlassPrecomputeRuntime {
                 if (old != null) old.close();
                 tex.close();
             }
+//#if MC >= 26.2
+            GpuTexture newTex = RenderSystem.getDevice().createTexture("reglass blurred r=" + radius, 12, GpuFormat.RGBA8_UNORM, w, h, 1, 1);
+//#else
             GpuTexture newTex = RenderSystem.getDevice().createTexture("reglass blurred r=" + radius, 12, TextureFormat.RGBA8, w, h, 1, 1);
+//#endif
             GpuTextureView newView = RenderSystem.getDevice().createTextureView(newTex);
             blurredByRadius.put(radius, newTex);
             blurredViewByRadius.put(radius, newView);
@@ -164,7 +195,11 @@ public final class LiquidGlassPrecomputeRuntime {
     private void uploadBlur(GpuBuffer ubo, float dx, float dy, int radius) {
         radius = Math.max(0, Math.min(radius, MAX_RADIUS));
         float[] weights = gaussian(radius);
+//#if MC >= 26.2
+        try (var map = ubo.map(false, true)) {
+//#else
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(ubo, false, true)) {
+//#endif
             Std140Builder b = Std140Builder.intoBuffer(map.data());
             b.putVec4(dx, dy, (float) radius, 0f);
             for (int i = 0; i <= MAX_RADIUS; i++) {
@@ -182,7 +217,12 @@ public final class LiquidGlassPrecomputeRuntime {
     public void run() {
         ensurePipelines();
 
-//#if MC >= 26
+//#if MC >= 26.2
+        var mc = Minecraft.getInstance();
+        var main = mc.gameRenderer.mainRenderTarget();
+        int w = main.width;
+        int h = main.height;
+//#elseif MC >= 26
         var mc = Minecraft.getInstance();
         var main = mc.getMainRenderTarget();
         int w = main.width;
@@ -196,7 +236,11 @@ public final class LiquidGlassPrecomputeRuntime {
 
         ensureTempTarget(w, h);
 
+//#if MC >= 26.2
+        try (var map = samplerInfoUbo.map(false, true)) {
+//#else
         try (var map = RenderSystem.getDevice().createCommandEncoder().mapBuffer(samplerInfoUbo, false, true)) {
+//#endif
             Std140Builder.intoBuffer(map.data()).putVec2((float) w, (float) h).putVec2((float) w, (float) h);
         }
 
@@ -204,7 +248,11 @@ public final class LiquidGlassPrecomputeRuntime {
         GameRenderer gameRenderer = mc.gameRenderer;
         GuiRenderer guiRenderer = ((GameRendererAccessor) gameRenderer).getGuiRenderer();
         var quadVB = ((QuadVertexBufferProvider) guiRenderer).getQuadVertexBuffer();
-//#if MC >= 26
+//#if MC >= 26.2
+        var idxInfo = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+        var ib = idxInfo.getBuffer(6);
+        var it = idxInfo.type();
+//#elseif MC >= 26
         var idxInfo = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS);
         var ib = idxInfo.getBuffer(6);
         var it = idxInfo.type();
@@ -240,9 +288,15 @@ public final class LiquidGlassPrecomputeRuntime {
             uploadBlur(blurConfigUboX, 1f, 0f, radius);
             uploadBlur(blurConfigUboY, 0f, 1f, radius);
 
+//#if MC >= 26.2
+            try (RenderPass pass = ce.createRenderPass(() -> "reglass blur X r=" + radius, blurTempView, Optional.empty())) {
+//#else
             try (RenderPass pass = ce.createRenderPass(() -> "reglass blur X r=" + radius, blurTempView, OptionalInt.empty())) {
+//#endif
                 pass.setPipeline(blurPipeline);
+//#if MC < 26.2
                 RenderSystem.bindDefaultUniforms(pass);
+//#endif
                 pass.setUniform("SamplerInfo", samplerInfoUbo);
                 pass.setUniform("Config", blurConfigUboX);
 //#if MC >= 26
@@ -250,14 +304,26 @@ public final class LiquidGlassPrecomputeRuntime {
 //#else
                 pass.bindTexture("DiffuseSampler", main.getColorAttachmentView(), RenderSystem.getSamplerCache().get(FilterMode.LINEAR));
 //#endif
+//#if MC >= 26.2
+                pass.setVertexBuffer(0, quadVB.slice());
+                pass.setIndexBuffer(ib, it);
+                pass.drawIndexed(6, 1, 0, 0, 0);
+//#else
                 pass.setVertexBuffer(0, quadVB);
                 pass.setIndexBuffer(ib, it);
                 pass.drawIndexed(0, 0, 6, 1);
+//#endif
             }
 
+//#if MC >= 26.2
+            try (RenderPass pass = ce.createRenderPass(() -> "reglass blur Y r=" + radius, blurredViewByRadius.get(radius), Optional.empty())) {
+//#else
             try (RenderPass pass = ce.createRenderPass(() -> "reglass blur Y r=" + radius, blurredViewByRadius.get(radius), OptionalInt.empty())) {
+//#endif
                 pass.setPipeline(blurPipeline);
+//#if MC < 26.2
                 RenderSystem.bindDefaultUniforms(pass);
+//#endif
                 pass.setUniform("SamplerInfo", samplerInfoUbo);
                 pass.setUniform("Config", blurConfigUboY);
 //#if MC >= 26
@@ -265,9 +331,15 @@ public final class LiquidGlassPrecomputeRuntime {
 //#else
                 pass.bindTexture("DiffuseSampler", blurTempView, RenderSystem.getSamplerCache().get(FilterMode.LINEAR));
 //#endif
+//#if MC >= 26.2
+                pass.setVertexBuffer(0, quadVB.slice());
+                pass.setIndexBuffer(ib, it);
+                pass.drawIndexed(6, 1, 0, 0, 0);
+//#else
                 pass.setVertexBuffer(0, quadVB);
                 pass.setIndexBuffer(ib, it);
                 pass.drawIndexed(0, 0, 6, 1);
+//#endif
             }
         }
     }

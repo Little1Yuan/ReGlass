@@ -3,7 +3,11 @@ package restudio.reglass.mixin.client;
 //#if MC >= 26
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
+//#if MC >= 26.2
+import net.minecraft.client.gui.Hud;
+//#else
 import net.minecraft.client.gui.Gui;
+//#endif
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
@@ -31,7 +35,9 @@ import restudio.reglass.client.api.ReGlassApi;
 import restudio.reglass.client.api.ReGlassConfig;
 import restudio.reglass.client.api.WidgetStyle;
 
-//#if MC >= 26
+//#if MC >= 26.2
+@Mixin(Hud.class)
+//#elseif MC >= 26
 @Mixin(Gui.class)
 //#else
 @Mixin(InGameHud.class)
@@ -101,7 +107,9 @@ public abstract class InGameHudMixin {
             return;
         }
 
-//#if MC >= 26
+//#if MC >= 26.2
+        if (this.minecraft.gui.hud.isHidden()) {
+//#elseif MC >= 26
         if (this.minecraft.options.hideGui) {
 //#else
         if (this.client.options.hudHidden) {

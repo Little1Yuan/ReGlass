@@ -73,11 +73,16 @@ public class ReGlassConfigScreen extends Screen {
 //#endif
             cfg.features.enableRedesign = !cfg.features.enableRedesign;
             button.setMessage(getEnableRedesignText());
-//#if MC >= 26
+//#if MC >= 26.2
+            this.minecraft.gui.setScreen(new ReGlassConfigScreen(this.parent));
+//#elseif MC >= 26
             this.minecraft.setScreen(new ReGlassConfigScreen(this.parent));
-        }).bounds(widgetX, y, widgetWidth, widgetHeight).build();
 //#else
             this.client.setScreen(new ReGlassConfigScreen(this.parent));
+//#endif
+//#if MC >= 26
+        }).bounds(widgetX, y, widgetWidth, widgetHeight).build();
+//#else
         }).dimensions(widgetX, y, widgetWidth, widgetHeight).build();
 //#endif
         addPositionedWidget(enableRedesignButton, y);
@@ -326,7 +331,10 @@ public class ReGlassConfigScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.translatable("controls.reset"), b -> {
 //#endif
             ReGlassSettingsIO.apply(new ReGlassSettingsIO.Data());
-//#if MC >= 26
+//#if MC >= 26.2
+            if (this.minecraft != null) {
+                this.minecraft.gui.setScreen(new ReGlassConfigScreen(this.parent));
+//#elseif MC >= 26
             if (this.minecraft != null) {
                 this.minecraft.setScreen(new ReGlassConfigScreen(this.parent));
 //#else
@@ -378,7 +386,7 @@ public class ReGlassConfigScreen extends Screen {
 //#endif
 
 //#if MC >= 26
-        previewRounded = addRenderableWidget(new LiquidGlassWidget(previewX, previewY + 20, 140, 60, s2).setCornerRadiusPx(16f));
+        previewRounded = addRenderableWidget(new LiquidGlassWidget(previewX + 20, previewY + 120, 140, 60, s2).setCornerRadiusPx(16f));
 //#else
         previewRounded = addDrawableChild(new LiquidGlassWidget(previewX + 110, previewY + 20, 140, 60, s2).setCornerRadiusPx(16f));
 //#endif
@@ -483,7 +491,10 @@ public class ReGlassConfigScreen extends Screen {
     public void close() {
 //#endif
         ReGlassSettingsIO.saveFromMemory();
-//#if MC >= 26
+//#if MC >= 26.2
+        if (this.minecraft != null) {
+            this.minecraft.gui.setScreen(this.parent);
+//#elseif MC >= 26
         if (this.minecraft != null) {
             this.minecraft.setScreen(this.parent);
 //#else
